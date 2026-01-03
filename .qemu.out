@@ -24,9 +24,9 @@ PMP1: 0x0000000000000000-0xffffffffffffffff (A,R,W,X)
 Special kernel symbols:
   entry  0xc020004a (virtual)
   etext  0xc02058c2 (virtual)
-  edata  0xc02b1288 (virtual)
-  end    0xc02b5768 (virtual)
-Kernel executable memory footprint: 726KB
+  edata  0xc02bbcf0 (virtual)
+  end    0xc02c01d0 (virtual)
+Kernel executable memory footprint: 769KB
 DTB Init
 HartID: 0
 DTB Address: 0x82200000
@@ -56,16 +56,16 @@ set priority to 2
 set priority to 3
 set priority to 4
 set priority to 5
-child pid 3, acc 844000, time 2010
-child pid 4, acc 708000, time 2010
-child pid 5, acc 828000, time 2010
-child pid 6, acc 824000, time 2010
-child pid 7, acc 748000, time 2010
-main: pid 0, acc 844000, time 2010
-main: pid 4, acc 708000, time 2010
-main: pid 5, acc 828000, time 2010
-main: pid 6, acc 824000, time 2010
-main: pid 7, acc 748000, time 2010
+child pid 3, acc 824000, time 2010
+child pid 4, acc 684000, time 2010
+child pid 5, acc 808000, time 2010
+child pid 6, acc 816000, time 2010
+child pid 7, acc 732000, time 2010
+main: pid 0, acc 824000, time 2010
+main: pid 4, acc 684000, time 2010
+main: pid 5, acc 808000, time 2010
+main: pid 6, acc 816000, time 2010
+main: pid 7, acc 732000, time 2010
 main: wait pids over
 sched result: 1 1 1 1 1
 all user-mode processes have quit.

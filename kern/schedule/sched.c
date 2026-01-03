@@ -54,6 +54,8 @@ void sched_init(void)
 
     sched_class = &default_sched_class;
     // sched_class = &stride_sched_class;
+    // sched_class = &sjf_sched_class;
+    // sched_class = &fifo_sched_class;
 
     rq = &__rq;
     rq->max_time_slice = MAX_TIME_SLICE;
