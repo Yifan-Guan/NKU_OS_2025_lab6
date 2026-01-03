@@ -105,6 +105,30 @@ alloc_proc(void)
          *       uint32_t flags;                             // Process flag
          *       char name[PROC_NAME_LEN + 1];               // Process name
          */
+        // 初始化进程状态为未初始化
+        proc->state = PROC_UNINIT;
+        // 初始化进程ID为-1（无效ID）
+        proc->pid = -1;
+        // 初始化运行次数为0
+        proc->runs = 0;
+        // 初始化内核栈地址为0
+        proc->kstack = 0;
+        // 初始化不需要重新调度
+        proc->need_resched = 0;
+        // 初始化父进程指针为NULL
+        proc->parent = NULL;
+        // 初始化内存管理结构为NULL
+        proc->mm = NULL;
+        // 初始化上下文结构体（全部设为0）
+        memset(&(proc->context), 0, sizeof(struct context));
+        // 初始化陷阱帧指针为NULL
+        proc->tf = NULL;
+        // 初始化页目录基址为boot_pgdir
+        proc->pgdir = boot_pgdir_pa;
+        // 初始化标志位为0
+        proc->flags = 0;
+        // 初始化进程名称为空字符串
+        memset(proc->name, 0, PROC_NAME_LEN + 1); 
 
         // LAB5:填写你在lab5中实现的代码 (update LAB4 steps)
         /*
@@ -112,8 +136,10 @@ alloc_proc(void)
          *       uint32_t wait_state;                        // waiting state
          *       struct proc_struct *cptr, *yptr, *optr;     // relations between processes
          */
+        proc->wait_state = 0; 
+        proc->cptr = proc->yptr = proc->optr = NULL;  
 
-        // LAB6:YOUR CODE (update LAB5 steps)
+        // LAB6: 2312307 (update LAB5 steps)
         /*
          * below fields(add in LAB6) in proc_struct need to be initialized
          *       struct run_queue *rq;                       // run queue contains Process
@@ -123,6 +149,12 @@ alloc_proc(void)
          *       uint32_t lab6_stride;                       // stride value (lab6 stride)
          *       uint32_t lab6_priority;                     // priority value (lab6 stride)
          */
+        proc->rq = NULL;
+        list_init(&(proc->run_link));
+        proc->time_slice = 0;
+        skew_heap_init(&proc->lab6_run_pool);
+        proc->lab6_stride = 0;
+        proc->lab6_priority = 0;
     }
     return proc;
 }
@@ -236,6 +268,26 @@ void proc_run(struct proc_struct *proc)
          *   lsatp():                   Modify the value of satp register
          *   switch_to():              Context switching between two processes
          */
+        bool intr_flag;
+        struct proc_struct *prev = current, *next = proc;
+        
+        // 1. 检查要切换的进程是否与当前正在运行的进程相同，如果相同则不需要切换。
+        // (已经在if条件中检查过了)
+        
+        // 2. 禁用中断
+        local_intr_save(intr_flag);
+        {
+            // 3. 切换当前进程为要运行的进程
+            current = proc;
+            
+            // 4. 切换页表，以便使用新进程的地址空间
+            lsatp(next->pgdir);
+            
+            // 5. 实现上下文切换
+            switch_to(&(prev->context), &(next->context));
+        }
+        // 6. 允许中断
+        local_intr_restore(intr_flag);
     }
 }
 
@@ -444,6 +496,30 @@ int do_fork(uint32_t clone_flags, uintptr_t stack, struct trapframe *tf)
     //    5. insert proc_struct into hash_list && proc_list
     //    6. call wakeup_proc to make the new child process RUNNABLE
     //    7. set ret vaule using child proc's pid
+    //    1. call alloc_proc to allocate a proc_struct
+    if ((proc = alloc_proc()) == NULL){
+        goto fork_out;
+    }
+    proc->parent = current;
+    current->wait_state = 0; // set current process's wait_state is 0
+    //    2. call setup_kstack to allocate a kernel stack for child process
+    if (setup_kstack(proc) != 0){
+        goto bad_fork_cleanup_proc;
+    }
+    //    3. call copy_mm to dup OR share mm according clone_flag
+    if (copy_mm(clone_flags, proc) != 0){
+        goto bad_fork_cleanup_kstack;
+    }
+    //    4. call copy_thread to setup tf & context in proc_struct
+    copy_thread(proc, stack, tf);
+    //    5. insert proc_struct into hash_list && proc_list, set relation links
+    proc->pid = get_pid();
+    hash_proc(proc);
+    set_links(proc);
+    //    6. call wakeup_proc to make the new child process RUNNABLE
+    wakeup_proc(proc);
+    //    7. set ret vaule using child proc's pid
+    ret = proc->pid;
 
     // LAB5:填写你在lab5中实现的代码 (update LAB4 steps)
     /* Some Functions
@@ -688,6 +764,12 @@ load_icode(unsigned char *binary, size_t size)
      *          tf_eip should be the entry point of this binary program (elf->e_entry)
      *          tf_eflags should be set to enable computer to produce Interrupt
      */
+    // Set up user-mode trapframe: stack pointer, entry point, and status
+    tf->gpr.sp = USTACKTOP;              // user stack top
+    tf->epc = elf->e_entry;              // entry point of the ELF
+    // Enable interrupts on sret to user and clear SPP to indicate U-mode
+    tf->status = (sstatus | SSTATUS_SPIE) & ~SSTATUS_SPP;
+
 
     ret = 0;
 out:
